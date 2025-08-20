@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tender Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg-light: #f8fafc;
+        }
+        body { background: var(--bg-light); }
+        .navbar {
+            background: linear-gradient(135deg, var(--primary), #1d4ed8) !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .collection-card {
+            transition: .3s;
+            cursor: pointer;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .collection-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+        .card-title {
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        .tender-count {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .tender-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        #searchBox {
+            border-radius: 25px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            width: 300px;
+        }
+        #searchBox::placeholder { color: rgba(255,255,255,0.7); }
+        #searchBox:focus {
+            background: rgba(255,255,255,0.2);
+            box-shadow: 0 0 0 0.25rem rgba(255,255,255,0.1);
+        }
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary), #1d4ed8);
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+        .btn-close { filter: brightness(0) invert(1); }
+        .table thead th {
+            background: var(--bg-light);
+            border-bottom: 2px solid var(--primary);
+            color: var(--primary);
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+        .modal-xl { max-width: 95% !important; }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-grid-3x3-gap-fill me-2"></i>
+                Tender Dashboard
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <div class="position-relative">
+                    <i class="bi bi-search position-absolute" style="left: 15px; top: 12px; color: rgba(255,255,255,0.7);"></i>
+                    <input type="text" id="searchBox" class="form-control ps-5" placeholder="Search across all tenders...">
+                </div>
+                <button class="btn btn-light" onclick="viewSelectedTenders()">
+                    <i class="bi bi-eye-fill me-2"></i>View Selected
+                </button>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#authModal">
+                    <i class="bi bi-person-circle me-2"></i>Login/Register
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div id="dashboardContent" style="display:none;">
+        <div class="container mt-4">
+            <div class="row g-4" id="collectionCards">
+                <!-- Collection cards will be dynamically added here -->
+            </div>
+            <div class="mt-4" id="selectedTendersView">
+                <!-- Selected tenders will be shown here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for displaying tender details -->
+    <div class="modal fade" id="tenderModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content animate__animated animate__fadeIn">
+                <div class="modal-header">
+                    <h5 class="modal-title d-flex align-items-center">
+                        <i class="bi bi-list-ul me-2"></i>
+                        <span></span>
+                    </h5>
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <select class="form-select form-select-sm" id="entriesSelect">
+                                <option value="10">10 entries</option>
+                                <option value="25" selected>25 entries</option>
+                                <option value="50">50 entries</option>
+                                <option value="100">100 entries</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table id="tenderTable" class="table table-striped table-hover">
+                            <thead>
+                                <!-- Headers will be dynamically generated -->
+                            </thead>
+                            <tbody>
+                                <!-- Data will be dynamically populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div class="modal fade" id="authModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content animate__animated animate__fadeIn">
+                <div class="modal-header">
+                    <h5 class="modal-title">Login / Register</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3" id="authTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab">Login</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab">Register</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="authTabContent">
+                        <div class="tab-pane fade show active" id="login" role="tabpanel">
+                            <form id="loginForm">
+                                <div class="mb-3">
+                                    <label for="loginEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="loginEmail" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="loginPassword" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="loginPassword" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Login</button>
+                            </form>
+                            <div id="loginMsg" class="mt-2"></div>
+                        </div>
+                        <div class="tab-pane fade" id="register" role="tabpanel">
+                            <form id="registerForm">
+                                <div class="mb-3">
+                                    <label for="registerEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="registerEmail" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerPassword" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="registerPassword" required>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100">Register</button>
+                            </form>
+                            <div id="registerMsg" class="mt-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        let dataTable;
+        let allCollections = [];
+        let isLoggedIn = false;
+
+        function createCollectionCard(name, count) {
+            const formattedName = name.replace(/_/g, ' ').toUpperCase();
+            return `
+                <div class="col-md-2 animate__animated animate__fadeIn">
+                    <div class="card collection-card">
+                        <div class="card-body text-center p-3">
+                            <div class="form-check float-end">
+                                <input class="form-check-input" type="checkbox" value="${name}" id="check_${name}">
+                            </div>
+                            <i class="bi bi-folder2-open mb-2" style="font-size: 1.5rem; color: var(--primary);"></i>
+                            <h6 class="card-title mb-1">${formattedName}</h6>
+                            <div class="tender-count mb-1">${count.toLocaleString()}</div>
+                            <div class="tender-label small">tenders</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function fetchCollectionData() {
+            const cardsContainer = document.getElementById('collectionCards');
+            cardsContainer.innerHTML = '';
+
+            try {
+                const response = await fetch('http://localhost:8000/api/collections');
+                let allCollections = await response.json();
+                // Filter out 'users' collection
+                allCollections = allCollections.filter(c => c.name !== 'users');
+                allCollections.forEach(collection => {
+                    cardsContainer.innerHTML += createCollectionCard(collection.name, collection.count);
+                });
+            } catch (error) {
+                console.error('Error fetching collections:', error);
+                cardsContainer.innerHTML = '<div class="col-12 text-center text-danger">Error loading collections</div>';
+            }
+        }
+
+        async function viewSelectedTenders() {
+            const selectedCheckboxes = document.querySelectorAll('.form-check-input:checked');
+            if (selectedCheckboxes.length === 0) {
+                alert('Please select at least one tender collection');
+                return;
+            }
+
+            const selectedView = document.getElementById('selectedTendersView');
+            selectedView.innerHTML = '';
+
+            for (const checkbox of selectedCheckboxes) {
+                const collectionName = checkbox.value;
+                try {
+                    const response = await fetch(`http://localhost:8000/api/tenders/${collectionName}`);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+
+                    if (data.length === 0) {
+                        selectedView.innerHTML += `
+                            <div class="alert alert-info mb-4">
+                                No tenders found in ${collectionName.replace(/_/g, ' ').toUpperCase()}
+                            </div>`;
+                        continue;
+                    }
+
+                    // Create section for this collection
+                    const section = document.createElement('div');
+                    section.className = 'card mb-4 animate__animated animate__fadeIn';
+                    
+                    // Add header
+                    section.innerHTML = `
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-folder2-open me-2"></i>
+                                ${collectionName.replace(/_/g, ' ').toUpperCase()}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="table_${collectionName}">
+                                    <thead><tr></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+
+                    selectedView.appendChild(section);
+
+                    // Initialize DataTable
+                    const columns = [...new Set(data.flatMap(obj => Object.keys(obj)))];
+                    const headerRow = section.querySelector('thead tr');
+                    columns.forEach(col => {
+                        const th = document.createElement('th');
+                        th.textContent = col.replace(/_/g, ' ').toUpperCase();
+                        headerRow.appendChild(th);
+                    });
+
+                    new DataTable(`#table_${collectionName}`, {
+                        data,
+                        columns: columns.map(col => ({
+                            title: col.replace(/_/g, ' ').toUpperCase(),
+                            data: col,
+                            defaultContent: '-'
+                        })),
+                        scrollX: true,
+                        pageLength: 10,
+                        order: [[0, 'desc']],
+                        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+                        language: {
+                            search: '<i class="bi bi-search"></i>',
+                            searchPlaceholder: 'Filter tenders...'
+                        }
+                    });
+
+                } catch (error) {
+                    console.error('Error fetching tenders:', error);
+                    selectedView.innerHTML += `
+                        <div class="alert alert-danger mb-4">
+                            Error loading tenders for ${collectionName.replace(/_/g, ' ').toUpperCase()}: ${error.message}
+                        </div>`;
+                }
+            }
+
+            // Scroll to the results
+            selectedView.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showTenders(collection) {
+            const modal = new bootstrap.Modal(document.getElementById('tenderModal'));
+            document.querySelector('.modal-title').textContent = collection.replace('_', ' ').toUpperCase();
+
+            fetch(`http://localhost:8000/api/tenders/${collection}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.length === 0) {
+                        alert('No tenders found in this collection');
+                        return;
+                    }
+
+                    // Get all unique columns from the data
+                    const columns = [...new Set(data.flatMap(obj => Object.keys(obj)))];
+                    
+                    // Destroy existing DataTable if it exists
+                    if (dataTable) {
+                        dataTable.destroy();
+                    }
+
+                    // Clear and recreate table structure
+                    const table = document.getElementById('tenderTable');
+                    table.innerHTML = '<thead><tr></thead><tbody></tbody>';
+                    
+                    // Create table headers
+                    const headerRow = table.querySelector('thead tr');
+                    columns.forEach(col => {
+                        const th = document.createElement('th');
+                        th.textContent = col.replace('_', ' ').toUpperCase();
+                        headerRow.appendChild(th);
+                    });
+
+                    // Initialize new DataTable with enhanced features
+                    dataTable = new DataTable('#tenderTable', {
+                        data: data,
+                        columns: columns.map(col => ({
+                            title: col.replace(/_/g, ' ').toUpperCase(),
+                            data: col,
+                            defaultContent: '-'
+                        })),
+                        scrollX: true,
+                        pageLength: 25,
+                        order: [[0, 'desc']],
+                        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+                        columnDefs: [{
+                            targets: '_all',
+                            render: function(data, type, row) {
+                                if (data === null || data === undefined) return '-';
+                                if (typeof data === 'object') return JSON.stringify(data);
+                                if (typeof data === 'string' && data.match(/^https?:\/\//)) {
+                                    return `<a href="${data}" target="_blank" class="text-primary">${data}</a>`;
+                                }
+                                return data;
+                            }
+                        }],
+                        language: {
+                            search: '<i class="bi bi-search"></i>',
+                            searchPlaceholder: 'Filter tenders...',
+                            lengthMenu: 'Show _MENU_ entries',
+                            info: 'Showing _START_ to _END_ of _TOTAL_ tenders',
+                            paginate: {
+                                first: '<i class="bi bi-chevron-double-left"></i>',
+                                last: '<i class="bi bi-chevron-double-right"></i>',
+                                next: '<i class="bi bi-chevron-right"></i>',
+                                previous: '<i class="bi bi-chevron-left"></i>'
+                            }
+                        },
+                        drawCallback: function() {
+                            $('.dataTables_paginate > .pagination').addClass('pagination-sm');
+                        }
+                    });
+
+                    modal.show();
+                })
+                .catch(error => {
+                    console.error('Error fetching tenders:', error);
+                    if (error.message.includes('HTTP error')) {
+                        alert('Server error: Unable to fetch tenders. Please check if the server is running.');
+                    } else {
+                        alert('Error loading tenders: ' + error.message);
+                    }
+                });
+        }
+
+        // Global search functionality
+        document.getElementById('searchBox').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            document.querySelectorAll('.collection-card').forEach(card => {
+                const tenderName = card.querySelector('.card-title').textContent.toLowerCase();
+                card.closest('.col-md-3').style.display = 
+                    tenderName.includes(searchTerm) ? 'block' : 'none';
+            });
+        });
+
+        // Show all tenders from all collections by default
+        async function showAllTenders() {
+            const selectedView = document.getElementById('selectedTendersView');
+            selectedView.innerHTML = '';
+            try {
+                const collectionsResponse = await fetch('http://localhost:8000/api/collections');
+                let collections = await collectionsResponse.json();
+                // Filter out 'users' collection
+                collections = collections.filter(c => c.name !== 'users');
+                for (const collection of collections) {
+                    const collectionName = collection.name;
+                    const response = await fetch(`http://localhost:8000/api/tenders/${collectionName}`);
+                    if (!response.ok) continue;
+                    const data = await response.json();
+                    if (data.length === 0) continue;
+                    const section = document.createElement('div');
+                    section.className = 'card mb-4 animate__animated animate__fadeIn';
+                    section.innerHTML = `
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-folder2-open me-2"></i>
+                                ${collectionName.replace(/_/g, ' ').toUpperCase()}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="table_all_${collectionName}">
+                                    <thead><tr></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                    selectedView.appendChild(section);
+                    const columns = [...new Set(data.flatMap(obj => Object.keys(obj)))];
+                    const headerRow = section.querySelector('thead tr');
+                    columns.forEach(col => {
+                        const th = document.createElement('th');
+                        th.textContent = col.replace(/_/g, ' ').toUpperCase();
+                        headerRow.appendChild(th);
+                    });
+                    // Destroy existing DataTable instance if present
+                    const tableId = `#table_all_${collectionName}`;
+                    if ($.fn.DataTable.isDataTable(tableId)) {
+                        $(tableId).DataTable().destroy();
+                    }
+                    new DataTable(tableId, {
+                        data,
+                        columns: columns.map(col => ({
+                            title: col.replace(/_/g, ' ').toUpperCase(),
+                            data: col,
+                            defaultContent: '-'
+                        })),
+                        scrollX: true,
+                        pageLength: 10,
+                        order: [[0, 'desc']],
+                        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+                        language: {
+                            search: '<i class="bi bi-search"></i>',
+                            searchPlaceholder: 'Filter tenders...'
+                        }
+                    });
+                }
+            } catch (error) {
+                selectedView.innerHTML = '<div class="col-12 text-center text-danger">Error loading tenders</div>';
+            }
+        }
+
+        // Show login modal if not logged in
+        function requireLogin() {
+            if (!isLoggedIn) {
+                const authModal = new bootstrap.Modal(document.getElementById('authModal'));
+                authModal.show();
+            }
+        }
+
+        // Override login form submit to set isLoggedIn and show dashboard
+        $(function() {
+            $('#loginForm').on('submit', async function(e) {
+                e.preventDefault();
+                $('#loginMsg').text('');
+                const email = $('#loginEmail').val();
+                const password = $('#loginPassword').val();
+                try {
+                    const res = await fetch('http://localhost:8000/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        $('#loginMsg').html('<span class="text-success">' + data.message + '</span>');
+                        isLoggedIn = true;
+                        setTimeout(() => {
+                            $('#authModal').modal('hide');
+                            document.getElementById('dashboardContent').style.display = '';
+                            fetchCollectionData();
+                            showAllTenders();
+                        }, 1000);
+                    } else {
+                        $('#loginMsg').html('<span class="text-danger">' + (data.detail || data.message) + '</span>');
+                    }
+                } catch (err) {
+                    $('#loginMsg').html('<span class="text-danger">Error logging in</span>');
+                }
+            });
+            $('#registerForm').on('submit', async function(e) {
+                e.preventDefault();
+                $('#registerMsg').text('');
+                const email = $('#registerEmail').val();
+                const password = $('#registerPassword').val();
+                try {
+                    const res = await fetch('http://localhost:8000/api/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        $('#registerMsg').html('<span class="text-success">' + data.message + '</span>');
+                        setTimeout(() => { $('#authModal').modal('hide'); }, 1000);
+                    } else {
+                        $('#registerMsg').html('<span class="text-danger">' + (data.detail || data.message) + '</span>');
+                    }
+                } catch (err) {
+                    $('#registerMsg').html('<span class="text-danger">Error registering</span>');
+                }
+            });
+        });
+
+        // On page load, require login
+        window.onload = function() {
+            requireLogin();
+        };
+
+        // Initialize
+        fetchCollectionData();
+        showAllTenders();
+    </script>
+</body>
+</html>
